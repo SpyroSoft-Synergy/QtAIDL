@@ -1,0 +1,3 @@
+com.spyro_soft.stopwatchservice:    
+    config_simulator:
+        simulationFile: "qrc:/simulation.qml"

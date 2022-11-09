@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.spyro_soft.stopwatchservice">
+    <application>
+        <service
+            android:process=":StopwatchService"
+            android:name=".StopwatchService"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.spyro_soft.stopwatchservice.STOPWATCHSERVICE" /> <!-- [1] -->
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

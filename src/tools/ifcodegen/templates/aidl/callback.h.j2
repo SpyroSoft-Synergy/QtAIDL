@@ -1,0 +1,60 @@
+{#
+# Copyright (C) 2022 SpyroSoft S.A.
+# SPDX-License-Identifier: MIT
+#}
+
+{% import 'common/qtif_macros.j2' as qtif %}
+{% set file = '{}'.format(interface) %}
+{% set class = '{}{}'.format(interface, "Callback") %}
+{% set class_ctrl = '{}{}'.format(interface, "Backend") %}
+{% set ns = '{}'.format(module|module_path("::", "aidl")) %}
+{% set oncedefine = '{0}_{1}_H_'.format(module.module_name|upper, class|upper) %}
+#ifndef {{oncedefine}}
+#define {{oncedefine}}
+
+#include <QObject>
+
+#include <aidl/{{module | module_path}}/Bn{{class}}.h>
+
+QT_BEGIN_NAMESPACE
+
+class {{interface}}BackendInterface;
+class ScopedAStatus;
+
+namespace ns = {{module | module_ns("aidl") }};
+
+class {{class}} : public ns::Bn{{class}} {
+public:
+    {{class}}({{interface}}BackendInterface& controller);
+
+{% for property in interface.properties %}
+{% if property.type.is_struct %}
+    ndk::ScopedAStatus {{property}}Changed(const ::{{ns}}::{{property|return_type}}& in_{{property}}) override;
+{% elif property.type.is_string %}
+ndk::ScopedAStatus {{property}}Changed(const std::string& in_{{property}}) override;
+{% else %}
+    ndk::ScopedAStatus {{property}}Changed({{property|return_type}} in_{{property}}) override;
+{% endif %}
+{% endfor %}
+
+{% for signal in interface.signals %}
+{% set signal_parameters = [] %}
+{%   for parameter in signal.parameters %}
+{%     if parameter.type.is_struct %}
+{%       set _ = signal_parameters.append("const ::" + ns + "::" + parameter|return_type + " in_" + parameter.name) %}
+{%     elif parameter.type.is_string %}
+{%       set _ = signal_parameters.append("const std::string& in_" + parameter.name) %}
+{%     else %}
+{%       set _ = signal_parameters.append(parameter|return_type + " in_" + parameter.name) %}
+{%     endif %}
+{%   endfor %}
+    ndk::ScopedAStatus {{signal}}({{signal_parameters|join(", ")}}) override;
+{% endfor %}
+
+
+private:
+    {{interface}}BackendInterface& m_controller;
+};
+
+QT_END_NAMESPACE
+#endif // {{oncedefine}}

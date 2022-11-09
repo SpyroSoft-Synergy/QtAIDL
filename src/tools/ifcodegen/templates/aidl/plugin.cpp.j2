@@ -1,0 +1,76 @@
+{#
+# Copyright (C) 2022 SpyroSoft S.A.
+# SPDX-License-Identifier: MIT
+#}
+
+{% include "common/generated_comment.cpp.tpl" %}
+{% set class = '{0}Plugin'.format(module.module_name|upperfirst) %}
+
+#include "{{class|lower}}.h"
+
+{% for interface in module.interfaces %}
+#include "{{interface|lower}}backend.h"
+{% endfor %}
+
+#include <QStringList>
+#include <jni.h>
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_spyro_1soft_aidl_ServiceBinder_onServiceConnected(
+        JNIEnv* env,
+        jobject /* this */,
+        jobject binder,
+        jlong controllerPtr)
+{
+    if (!controllerPtr) {
+        return;
+    }
+
+    QMetaObject::invokeMethod(reinterpret_cast<QObject*>(controllerPtr), "initBinder", Q_ARG(QJniObject, QJniObject(binder)));
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_spyro_1soft_aidl_ServiceBinder_onServiceDisconnected(
+        JNIEnv* env,
+        jobject /* this */,
+        jlong controllerPtr)
+{
+    if (!controllerPtr) {
+        return;
+    }
+
+    QMetaObject::invokeMethod(reinterpret_cast<QObject*>(controllerPtr), "serviceDisconnected");
+}
+
+QT_BEGIN_NAMESPACE
+
+
+Q_DECLARE_METATYPE(QJniObject)
+
+{{class}}::{{class}}(QObject *parent)
+    : QObject(parent)
+{
+ qRegisterMetaType<QJniObject>("QJniObject");
+ {%   for interface in module.interfaces %}
+    auto {{interface}}Instance = new {{interface}}Backend(this);
+    m_interfaces << {{interface}}Instance;
+{%   endfor %}
+}
+
+QStringList {{class}}::interfaces() const
+{
+    QStringList list;
+{% for iface in module.interfaces %}
+{%   if loop.first %}    list{% endif %} << {{module.module_name|upperfirst}}_{{iface}}_iid{% if loop.last %};{% endif %}
+{% endfor %}
+
+    return list;
+}
+
+
+QIfFeatureInterface *{{class}}::interfaceInstance(const QString &interface) const
+{
+     int index = interfaces().indexOf(interface);
+     return index < 0 ? nullptr : m_interfaces.at(index);
+}
+QT_END_NAMESPACE

@@ -1,0 +1,16 @@
+{#
+# Copyright (C) 2022 SpyroSoft S.A.
+# SPDX-License-Identifier: MIT
+#}
+
+{
+    "interfaces" : [
+{% for interface in module.interfaces %}
+{%   set iid=interface.qualified_name %}
+{%   if 'config' in interface.tags and 'id' in interface.tags.config %}
+{%     set iid=interface.tags.config.id %}
+{%   endif %}
+      "{{iid}}"{% if not loop.last %},{%endif%}
+{% endfor%}
+    ]
+}

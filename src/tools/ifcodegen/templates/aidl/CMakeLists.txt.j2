@@ -1,0 +1,100 @@
+{#
+# Copyright (C) 2022 SpyroSoft S.A.
+# SPDX-License-Identifier: MIT
+#}
+
+set(ANDROID_BUILD_TOOLS_BASE_PATH ${ANDROID_SDK_ROOT}/build-tools CACHE INTERNAL "")
+
+if (NOT ANDROID_BUILD_TOOLS_VERSION)
+    file(GLOB BUILD_TOOLS_VERSIONS
+            RELATIVE ${ANDROID_BUILD_TOOLS_BASE_PATH}
+            ${ANDROID_BUILD_TOOLS_BASE_PATH}/${ANDROID_NATIVE_API_LEVEL}*)
+    if (NOT BUILD_TOOLS_VERSIONS)
+        file(GLOB BUILD_TOOLS_VERSIONS
+            RELATIVE ${ANDROID_BUILD_TOOLS_BASE_PATH}
+            ${ANDROID_BUILD_TOOLS_BASE_PATH}/*)
+    endif()
+
+    if (BUILD_TOOLS_VERSIONS)
+        list(GET BUILD_TOOLS_VERSIONS -1 LAST_VERSION)
+        set(ANDROID_BUILD_TOOLS_VERSION ${LAST_VERSION} CACHE INTERNAL "")
+    else()
+        message(FATAL_ERROR "Can't find android build tools in ${ANDROID_BUILD_TOOLS_BASE_PATH}")
+    endif()
+endif()
+
+qt6_set_ifcodegen_variable(${VAR_PREFIX}_SOURCES
+${CMAKE_CURRENT_LIST_DIR}/{{module.module_name|lower}}plugin.cpp
+{% for interface in module.interfaces %}
+    ${CMAKE_CURRENT_LIST_DIR}/{{interface|lower}}backend.cpp
+{% endfor %}
+{% for interface in module.interfaces %}
+    ${CMAKE_CURRENT_LIST_DIR}/{{interface|lower}}callback.cpp
+{% endfor %}
+)
+
+set(AIDL_FILES 
+{% for module in system.modules %}
+    {% for interface in module.interfaces %}
+        ${CMAKE_CURRENT_LIST_DIR}/aidl/{{module | module_path}}/I{{interface}}Service.aidl
+        ${CMAKE_CURRENT_LIST_DIR}/aidl/{{module | module_path}}/I{{interface}}Callback.aidl
+    {% endfor %}
+    {% for struct in module.structs %}
+        ${CMAKE_CURRENT_LIST_DIR}/aidl/{{module | module_path}}/{{struct}}.aidl
+    {% endfor %}
+{% endfor %}
+)
+
+set(AIDL_CPP_SOURCES
+{% for module in system.modules %}
+    {%   for interface in module.interfaces %}
+        ${CMAKE_CURRENT_LIST_DIR}/{{module | module_path}}/I{{interface}}Service.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/{{module | module_path}}/I{{interface}}Callback.cpp
+    {%   endfor %}
+    {%   for struct in module.structs %}
+        ${CMAKE_CURRENT_LIST_DIR}/{{module | module_path}}/{{struct}}.cpp
+    {%   endfor %}
+{% endfor %}
+)
+
+set(AIDL_INC_DIR ${CMAKE_CURRENT_LIST_DIR}/aidl)
+
+find_program(
+    AIDL aidl
+    PATHS ${ANDROID_BUILD_TOOLS_BASE_PATH}/${ANDROID_BUILD_TOOLS_VERSION}
+    REQUIRED
+)
+
+if(NOT AIDL)
+    message(FATAL_ERROR "aidl not found!")
+endif()
+
+add_custom_command(
+    OUTPUT
+    ${AIDL_CPP_SOURCES}
+    COMMAND ${AIDL}
+    --lang=ndk
+    -o ${CMAKE_CURRENT_LIST_DIR}
+    -h ${CMAKE_CURRENT_LIST_DIR}
+    -I ${AIDL_INC_DIR}
+    ${AIDL_FILES}
+    DEPENDS
+    ${AIDL_FILES}
+    VERBATIM)
+
+if (TARGET ${CURRENT_TARGET})
+    target_sources(${CURRENT_TARGET}
+               PRIVATE
+    ${${VAR_PREFIX}_SOURCES}
+    ${AIDL_CPP_SOURCES}
+)
+
+    target_include_directories(${CURRENT_TARGET} PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
+    )
+    target_link_libraries(${CURRENT_TARGET} PRIVATE binder_ndk)
+
+endif()
+
+
+

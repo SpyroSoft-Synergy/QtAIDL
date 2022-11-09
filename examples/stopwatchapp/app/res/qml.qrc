@@ -1,0 +1,22 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>Stopwatch.qml</file>
+        <file>timer_components/background.png</file>
+        <file>timer_components/markers.png</file>
+        <file>timer_components/play.png</file>
+        <file>timer_components/stop.png</file>
+        <file>timer_components/light.png</file>
+        <file>timer_components/flow_mili.png</file>
+        <file>RoundButton.qml</file>
+        <file>timer_components/button_effect.png</file>
+        <file>timer_components/B612-Regular.ttf</file>
+        <file>CircularItem.qml</file>
+        <file>timer_components/minute_gouge.png</file>
+        <file>timer_components/minute_glow.png</file>
+        <file>timer_components/clock_face.png</file>
+        <file>timer_components/clock_face_shadow.png</file>
+        <file>timer_components/spyro_logo.png</file>
+        <file>shaders/circularShader.frag.qsb</file>
+    </qresource>
+</RCC>

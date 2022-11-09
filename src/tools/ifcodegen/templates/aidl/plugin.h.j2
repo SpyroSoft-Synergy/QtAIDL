@@ -1,0 +1,38 @@
+{#
+# Copyright (C) 2022 SpyroSoft S.A.
+# SPDX-License-Identifier: MIT
+#}
+
+{% include "common/generated_comment.cpp.tpl" %}
+{% set class = '{0}Plugin'.format(module.module_name|upperfirst) %}
+{% set oncedefine = '{0}_{1}_H_'.format(module.module_name|upper, class|upper) %}
+
+#ifndef {{oncedefine}}
+#define {{oncedefine}}
+
+#include <QVector>
+#include <QtInterfaceFramework/QIfServiceInterface>
+
+QT_BEGIN_NAMESPACE
+
+class {{class}} : public QObject, QIfServiceInterface
+{
+    Q_OBJECT
+    Q_PLUGIN_METADATA(IID QIfServiceInterface_iid FILE "{{module.module_name|lower}}.json")
+    Q_INTERFACES(QIfServiceInterface)
+
+public:
+    typedef QVector<QIfFeatureInterface *> (InterfaceBuilder)({{class}} *);
+
+    explicit {{class}}(QObject *parent = nullptr);
+
+    QStringList interfaces() const override;
+    QIfFeatureInterface* interfaceInstance(const QString& interface) const override;
+
+private:
+    QVector<QIfFeatureInterface *> m_interfaces;
+};
+
+QT_END_NAMESPACE
+
+#endif // {{oncedefine}}

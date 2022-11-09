@@ -1,0 +1,18 @@
+aidl:
+    module:
+        documents:
+            - "{{srcBase|lower}}.cmake": "CMakeLists.txt.j2"
+    interface:
+        documents:
+            - "aidl/{{interface.module | module_path}}/I{{interface}}Service.aidl": "service.aidl.j2"
+            - "aidl/{{interface.module | module_path}}/I{{interface}}Callback.aidl": "callback.aidl.j2"
+            - "{{interface|lower}}backend.h": "backend.h.j2"
+            - "{{interface|lower}}backend.cpp": "backend.cpp.j2"
+            - "{{interface|lower}}callback.cpp": "callback.cpp.j2"
+            - "{{interface|lower}}callback.h": "callback.h.j2"
+            - "{{module.module_name|lower}}.json": "plugin.json.j2"
+            - "{{module.module_name|lower}}plugin.h": "plugin.h.j2"
+            - "{{module.module_name|lower}}plugin.cpp": "plugin.cpp.j2"
+    struct:
+        documents:
+            - "aidl/{{interface.module | module_path}}/{{struct}}.aidl": "struct.aidl.j2"

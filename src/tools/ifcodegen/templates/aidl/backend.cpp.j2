@@ -1,0 +1,254 @@
+{#
+# Copyright (C) 2022 SpyroSoft S.A.
+# SPDX-License-Identifier: MIT
+#}
+
+{% import 'common/qtif_macros.j2' as qtif %}
+{% set class = '{0}Backend'.format(interface) %}
+{% set callback = '{}{}'.format(interface, "Callback") %}
+#include "{{class|lower}}.h"
+
+#include <QCoreApplication>
+#include <QtDebug>
+#include <QTimer>
+
+#include <jni.h>
+#include <android/binder_auto_utils.h>
+#include <android/binder_ibinder.h>
+#include <android/binder_ibinder_jni.h>
+
+#include <string>
+
+namespace ns = {{module | module_ns("aidl") }};
+
+
+QT_BEGIN_NAMESPACE
+
+#define BINDER_ALIVE(binder) (binder && AIBinder_ping(binder) == STATUS_OK)
+
+namespace {
+const char JavaBinderClassName[]{"com/spyro_soft/aidl/ServiceBinder"};
+} // anonymous namespace
+
+{{class}}::{{class}}(QObject *parent)
+    : {{interface}}BackendInterface(parent)
+    , m_{{callback|lower_first}}({{callback}}::make<{{callback}}>(*this))
+    , m_SpAIBinder(nullptr)
+    , m_pAIBinder(nullptr)
+    , m_JniBinder()
+{
+    if (QJniObject::isClassAvailable(JavaBinderClassName)) {
+        qDebug() << "{{module.module_name|upperfirst}}Binder is available!";
+        QJniObject intentName = QJniObject::fromString("{{interface.module.name}}.{{module.module_name|upper}}");
+        QNativeInterface::QAndroidApplication::runOnAndroidMainThread([this, &intentName]() {
+        m_JniBinder = QJniObject(JavaBinderClassName,
+                                   "(Landroid/content/Context;JLjava/lang/String;)V",
+                                   QNativeInterface::QAndroidApplication::context(),
+                                   reinterpret_cast<long>(this),
+                                   intentName.object<jstring>());
+        }).waitForFinished();
+    }
+
+    if (false == m_JniBinder.isValid()) {
+        throw std::runtime_error("{{module.module_name|upperfirst}}Binder is not available!");
+    }
+}
+
+{{class}}::~{{class}}()
+{
+    unsetServiceObjects();
+}
+
+void {{class}}::setService(const std::shared_ptr<module_ns::IStopwatchControllerService> &service)
+{
+    m_Service = service;
+}
+
+{% for property in interface.properties %}
+{{qtif.prop_getter(property, class = class, model_interface = true)}}
+{
+    if (m_Service && BINDER_ALIVE(m_pAIBinder)) {
+        qDebug() << "{{property}} getter method";
+{%   if property.type.is_struct %}
+        {{property|return_type}} st;
+        ns::{{property|return_type}} src;
+        m_Service->{{property}}(&src);
+
+{%     for field in property.type.reference.fields %}
+        st.{{field|setter_name}}(src.{{field}});
+{%     endfor %}
+        return st;
+{%   elif property.type.is_string %}
+        std::string src;
+        m_Service->{{property}}(&src);
+        return QString::fromStdString(src);
+{%   else %}
+        {{property|return_type}} src;
+        m_Service->{{property}}(&src);
+        return src;
+{%   endif %}      
+    } else {
+        qDebug() << "{{property}} getter method {{interface}}Service is not binded!";
+    }
+    return {{property|default_type_value}};
+}
+
+{%   if not property.readonly and not property.const %}
+{{qtif.prop_setter(property, class = class)}}
+{
+    if (m_Service && BINDER_ALIVE(m_pAIBinder)) {
+        qDebug() << "{{property}} setter method";
+{%     if property.type.is_struct %}
+        ns::{{property|return_type}} st;    
+
+{%       for field in property.type.reference.fields %}
+        st.{{field}} = {{property}}.{{field}}();
+{%       endfor %}
+        m_Service->set{{property.name|upperfirst}}(st);
+{%     elif property.type.is_string %}
+        m_Service->set{{property.name|upperfirst}}({{property}}.toStdString());
+{%     else %}
+        m_Service->set{{property.name|upperfirst}}({{property}});
+{%     endif %}
+    } else {
+        qDebug() << "{{property}} setter method {{interface}}Service is not binded!";
+    }
+}
+{%  endif %}
+{% endfor %}
+void {{class}}::unsetServiceObjects()
+{
+    if (m_Service && m_{{callback|lower_first}}) {
+        qDebug() << "Callback unregistry status: " <<
+            m_Service->unregisterCallback(m_{{callback|lower_first}}).getDescription().c_str();;
+    }
+    m_SpAIBinder.set(nullptr);
+    m_pAIBinder = nullptr;
+    m_Service.reset();
+}
+
+void {{class}}::register{{callback}}()
+{
+    qDebug() << "Callback registry status: " <<
+                m_Service->registerCallback(m_{{callback|lower_first}}).getDescription().c_str();
+}
+
+void {{class}}::initialize()
+{
+    initBinder(m_JniBinder);
+{% for property in interface.properties %}
+    Q_EMIT {{property}}Changed({{property}}());
+{% endfor%}
+    Q_EMIT initializationDone();
+}
+
+{% for operation in interface.operations %}
+{{qtif.operation(operation, class, interface_zoned)}}
+{
+{%  set function_parameters = [] %}
+{%  for parameter in operation.parameters%}
+{%    if parameter.type.is_string %}
+{%      set _ = function_parameters.append(parameter.name +".toStdString()") %}
+{%    elif parameter.type.is_struct %}
+{%        set _ = function_parameters.append(parameter.name +"Aidl") %}
+{%    else %}
+{%       set _ = function_parameters.append(parameter.name) %}
+{%    endif %}
+{%  endfor %}
+{%  if not operation.type.is_void %}
+{%    set _ = function_parameters.append("&result") %}
+{%  endif %}
+    QIfPendingReply<{{operation|return_type}}> reply;
+
+    qDebug() << "{{operation}}: called";
+
+    if (m_Service && BINDER_ALIVE(m_pAIBinder)) {
+{% if function_parameters %}
+{% set params = function_parameters|join(", ") %}
+{% else %}
+{%  set params = "" %}
+{% endif %}
+
+{%  if not operation.type.is_void %}
+{%    if operation.type.is_struct %}
+        ns::{{operation|return_type}} result;
+{%    elif operation.type.is_string%}
+        std::string result;
+{%    else %}
+        {{operation|return_type}} result;
+{%    endif %}
+{%  endif %}
+{%  for parameter in operation.parameters%}
+{%    if parameter.type.is_struct %}
+        ns::{{parameter|return_type}} {{parameter}}Aidl;
+{%       for field in parameter.type.reference.fields %}
+        {{parameter}}Aidl.{{field}} = {{parameter}}.{{field}}();
+{%       endfor %}
+{%    endif %}
+{%  endfor %}
+
+        auto status = m_Service->{{operation}}({{params}});
+        if (status.isOk()) {
+{%  if not operation.type.is_void %}
+{%    if operation.type.is_struct %}
+           {{operation|return_type}} resultValue;
+{%       for field in operation.type.reference.fields %}
+           resultValue.{{field|setter_name}}(result.{{field}});
+{%       endfor %}           
+{%    elif operation.type.is_string%}
+            QString resultValue = QString::fromStdString(result);
+{%    else %}
+            {{operation|return_type}} resultValue = result;
+{%    endif%}
+            reply.setSuccess(resultValue);
+{%  else %}
+            reply.setSuccess();
+{%  endif %}
+            return reply; 
+        } else {
+            qDebug() << "{{operation}} failed" <<  status.getMessage();
+        }
+    } else {
+        qDebug() << "{{interface}}Service is not binded!";
+        m_JniBinder.callMethod<void>("bindToService");
+    }
+
+    if (!m_{{callback|lower_first}}) {
+        qWarning() << "Callback unregistered";
+    }
+
+    reply.setFailed();
+
+    return reply;
+}
+
+{% endfor %}
+void {{class}}::initBinder(QJniObject binder)
+{ 
+    QJniEnvironment env;
+    m_pAIBinder = AIBinder_fromJavaBinder(env.jniEnv(), binder.object());
+    m_SpAIBinder.set(m_pAIBinder);
+    auto service = module_ns::I{{interface}}Service::fromBinder(m_SpAIBinder);
+
+    if (service && BINDER_ALIVE(m_pAIBinder)) {
+        setService(service);
+        register{{callback}}();
+        qDebug() << "binder initialized";
+    }
+    else {
+        qDebug() << "service invalid";
+    }
+}
+
+void {{class}}::serviceDisconnected()
+{
+    qDebug() << "Service disconnected";
+
+{% for property in interface.properties %}
+    Q_EMIT {{property}}Changed({{property}}());
+{% endfor%}
+
+    unsetServiceObjects();
+}
+
+QT_END_NAMESPACE

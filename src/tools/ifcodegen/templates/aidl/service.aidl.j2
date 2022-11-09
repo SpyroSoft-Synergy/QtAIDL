@@ -1,0 +1,41 @@
+{#
+# Copyright (C) 2022 SpyroSoft S.A.
+# SPDX-License-Identifier: MIT
+#}
+
+package {{interface.module.name}};
+
+import {{interface.module.name}}.I{{interface}}Callback;
+{% for t in interface | structures %}
+import {{interface.module.name}}.{{t.name}};
+{% endfor %}
+
+interface I{{interface}}Service {
+    /** Register callback object for time-based events. */
+    void registerCallback(I{{interface}}Callback cb);
+
+    /** Unregister callback object for time-based events. */
+    void unregisterCallback(I{{interface}}Callback cb);
+
+    {% for operation in interface.operations %}
+    {%   if "comment" in operation.tags  %}
+    /** {{operation.tags.comment}} */
+    {%   else %}
+    //
+    {%   endif %}
+    {{operation|aidl_type}} {{operation}}({% for param in operation.parameters %}in {{param|aidl_type}} {{param.name}}{{ ", " if not loop.last}}{% endfor %});
+
+    {% endfor %}
+    {% for property in interface.properties %}
+    {%   if "comment" in property.tags  %}
+    /** {{property.tags.comment}} */
+    {%   else %}
+    //
+    {%   endif %}
+    {{property|aidl_type}} {{property}}();
+    {%   if not property.readonly and not property.const %}
+    void set{{property.name|upperfirst}}(in {{property|aidl_type}} {{property}});
+    {%   endif %}
+
+    {% endfor %}
+}

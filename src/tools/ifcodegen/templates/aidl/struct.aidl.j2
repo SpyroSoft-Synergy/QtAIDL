@@ -1,0 +1,12 @@
+{#
+# Copyright (C) 2022 SpyroSoft S.A.
+# SPDX-License-Identifier: MIT
+#}
+
+package {{struct.module.name}};
+
+parcelable {{struct}} {
+    {% for field in struct.fields %}
+    {{ field|aidl_type }} {{ field }};
+    {% endfor %}
+}

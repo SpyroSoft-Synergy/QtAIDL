@@ -1,0 +1,7 @@
+name: qtaidl_env
+channels:
+  - nodefaults
+dependencies:
+  - python=3.9
+  - pip:
+      - qface>=2.0.8

@@ -1,0 +1,65 @@
+find_package(Qt6 COMPONENTS Core)
+
+macro(add_android_dependency TARGET)
+  if(NOT ${TARGET} IN_LIST _ANDROID_DEPNDECY_TARGETS)
+    get_target_property(TARGET_BASE_NAME ${TARGET} LIBRARY_OUTPUT_NAME)
+    if(NOT TARGET_BASE_NAME)
+      set(TARGET_BASE_NAME ${TARGET})
+    endif()
+    get_target_property(TARGET_SUFFIX ${TARGET} SUFFIX)
+    set(TARGET_PATH
+        ${CMAKE_CURRENT_BINARY_DIR}/lib${TARGET_BASE_NAME}${TARGET_SUFFIX})
+    set(_EXTRA_ANDROID_LIBS
+        ${_EXTRA_ANDROID_LIBS} ${TARGET_PATH}
+        CACHE INTERNAL "" FORCE)
+    set(_ANDROID_DEPNDECY_TARGETS
+        ${_ANDROID_DEPNDECY_TARGETS} ${TARGET}
+        CACHE INTERNAL "" FORCE)
+  endif()
+endmacro()
+
+function(finalize_android_dependencies TARGET)
+  get_target_property(TARGET_LINK_LIBS ${TARGET} LINK_LIBRARIES)
+  foreach(DEPENDENCY_TARGET ${_ANDROID_DEPNDECY_TARGETS})
+
+    get_target_property(DEPENDENCY_TARGET_LINK_LIBS ${DEPENDENCY_TARGET}
+                        LINK_LIBRARIES)
+    list(FILTER DEPENDENCY_TARGET_LINK_LIBS INCLUDE REGEX "Qt.*")
+    foreach(DEPENDENCY_TARGET_LINK_LIB ${DEPENDENCY_TARGET_LINK_LIBS})
+      if(NOT DEPENDENCY_TARGET_LINK_LIB IN_LIST TARGET_LINK_LIBS
+         AND NOT DEPENDENCY_TARGET_LINK_LIB IN_LIST ADDITIONAL_TARGET_LINK_LIBS)
+        set(ADDITIONAL_TARGET_LINK_LIBS ${ADDITIONAL_TARGET_LINK_LIBS}
+                                        ${DEPENDENCY_TARGET_LINK_LIB})
+      endif()
+    endforeach()
+  endforeach()
+  set_target_properties(${TARGET} PROPERTIES QT_ANDROID_EXTRA_LIBS
+                                             "${_EXTRA_ANDROID_LIBS}")
+  foreach(ADDITIONAL_TARGET_LINK_LIB ${ADDITIONAL_TARGET_LINK_LIBS})
+    if(ADDITIONAL_TARGET_LINK_LIB MATCHES ".*::.*"
+       AND NOT ADDITIONAL_TARGET_LINK_LIB MATCHES ".*Private")
+      string(REPLACE "::" ";" ADDITIONAL_TARGET_LINK_LIB_SPLITTED
+                     ${ADDITIONAL_TARGET_LINK_LIB})
+      list(GET ADDITIONAL_TARGET_LINK_LIB_SPLITTED 0
+           ADDITIONAL_TARGET_LINK_LIB_PACKAGE)
+      list(GET ADDITIONAL_TARGET_LINK_LIB_SPLITTED 1
+           ADDITIONAL_TARGET_LINK_LIB_COMPONENT)
+
+      find_package(
+        ${ADDITIONAL_TARGET_LINK_LIB_PACKAGE}
+        COMPONENTS ${ADDITIONAL_TARGET_LINK_LIB_COMPONENT}
+        REQUIRED)
+    elseif(NOT ADDITIONAL_TARGET_LINK_LIB MATCHES ".*Private")
+      find_package(${ADDITIONAL_TARGET_LINK_LIB} REQUIRED)
+    endif()
+  endforeach()
+  target_link_libraries(${TARGET} PUBLIC ${ADDITIONAL_TARGET_LINK_LIBS})
+
+  get_target_property(TARGET_LINK_LIBS ${TARGET} LINK_LIBRARIES)
+endfunction()
+
+function(get_android_extra_libs OUTPUT_LIST TARGET)
+  set(${OUTPUT_LIST}
+      "${CONAN_LIBS};${_EXTRA_ANDROID_LIBS}"
+      PARENT_SCOPE)
+endfunction()

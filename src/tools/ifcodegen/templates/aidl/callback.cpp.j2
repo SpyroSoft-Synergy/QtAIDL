@@ -1,0 +1,89 @@
+{#
+# Copyright (C) 2022 SpyroSoft S.A.
+# SPDX-License-Identifier: MIT
+#}
+
+{% import 'common/qtif_macros.j2' as qtif %}
+{% set file = '{}'.format(interface) %}
+{% set class = '{}{}'.format(interface, "Callback") %}
+{% set class_ctrl = '{}{}'.format(interface, "Backend") %}
+{% set ns = '{}'.format(module|module_path("::", "aidl")) %}
+#include "{{class|lower}}.h"
+#include "{{interface|lower}}backendinterface.h"
+
+#include <QDebug>
+
+QT_BEGIN_NAMESPACE
+
+{{class}}::{{class}}({{interface}}BackendInterface &controller)
+    : m_controller(controller)
+{
+}
+
+{% for property in interface.properties %}
+{% if property.type.is_struct %}
+ndk::ScopedAStatus {{class}}::{{property}}Changed(const ::{{ns}}::{{property|return_type}}& {{property}})
+{% elif property.type.is_string %}
+ndk::ScopedAStatus {{class}}::{{property}}Changed(const std::string& {{property}})
+{% else %}
+ndk::ScopedAStatus {{class}}::{{property}}Changed({{property|return_type}} {{property}})
+{% endif %}
+{
+{% if property.type.is_struct %}
+    {{property|return_type}} st;
+
+    {% for field in property.type.reference.fields %}
+    st.{{field|setter_name}}({{property}}.{{field}});
+    {% endfor %}
+
+    QMetaObject::invokeMethod(&m_controller, "{{property}}Changed",  Qt::ConnectionType::QueuedConnection, Q_ARG({{property|return_type}}, st));
+{% elif property.type.is_string %}
+    QMetaObject::invokeMethod(&m_controller, "{{property}}Changed",  Qt::ConnectionType::QueuedConnection, Q_ARG({{property|return_type}}, QString::fromStdString({{property}})));
+{% else %}
+    QMetaObject::invokeMethod(&m_controller, "{{property}}Changed",  Qt::ConnectionType::QueuedConnection, Q_ARG({{property|return_type}}, {{property}}));
+{% endif %}
+
+    return ndk::ScopedAStatus::ok();
+}
+
+{% endfor %}
+{% for signal in interface.signals %}
+{% set signal_parameters = [] %}
+{%   for parameter in signal.parameters %}
+{%     if parameter.type.is_struct %}
+{%       set _ = signal_parameters.append("const ::" + ns + "::" + parameter|return_type + " in_" + parameter.name) %}
+{%     elif parameter.type.is_string %}
+{%       set _ = signal_parameters.append("const std::string& in_" + parameter.name) %}
+{%     else %}
+{%       set _ = signal_parameters.append(parameter|return_type + " in_" + parameter.name) %}
+{%     endif %}
+{%   endfor %}
+ndk::ScopedAStatus {{class}}::{{signal}}({{signal_parameters|join(", ")}})
+{
+{% set signal_args = [] %}
+{% for parameter in signal.parameters %}
+{%   if parameter.type.is_struct %}
+    {{parameter|return_type}} {{parameter}};
+
+    {% for field in parameter.type.reference.fields %}
+    {{parameter}}.{{field|setter_name}}(in_{{parameter}}.{{field}});
+    {% endfor %}
+
+{%     set _ = signal_args.append("Q_ARG(" + parameter|return_type + ", " + parameter.name + ")") %}
+{%   elif parameter.type.is_string %}
+{%     set _ = signal_args.append("Q_ARG(" + parameter|return_type + ", QString::fromStdString(in_" + parameter.name + "))") %}
+{%   else %}
+{%     set _ = signal_args.append("Q_ARG(" + parameter|return_type + ", in_" + parameter.name + ")") %}
+{%   endif %}
+{% endfor %}
+{% if signal_args %}
+    QMetaObject::invokeMethod(&m_controller, "{{signal}}",  Qt::ConnectionType::QueuedConnection, {{signal_args|join(", ")}});
+{% else %}
+    QMetaObject::invokeMethod(&m_controller, "{{signal}}",  Qt::ConnectionType::QueuedConnection);
+{% endif %}
+    return ndk::ScopedAStatus::ok();
+}
+
+{% endfor %}
+QT_END_NAMESPACE
+

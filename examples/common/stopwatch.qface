@@ -1,0 +1,18 @@
+module com.spyro_soft.stopwatchservice 1.0
+
+interface StopwatchController {
+    @comment: "Stop and reset the stopwatch."
+    void reset()
+
+    @comment: "Controls running state of stopwatch"
+    bool isRunning
+
+    @comment: "Returns time"
+    readonly TimeStruct time
+}
+
+struct TimeStruct {
+    int minutes
+    int seconds
+    int milliseconds
+}

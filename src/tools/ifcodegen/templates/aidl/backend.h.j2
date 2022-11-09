@@ -1,0 +1,73 @@
+{#
+# Copyright (C) 2022 SpyroSoft S.A.
+# SPDX-License-Identifier: MIT
+#}
+
+{% import 'common/qtif_macros.j2' as qtif %}
+{% set file = '{}'.format(interface) %}
+{% set class = '{}{}'.format(interface, "Backend") %}
+{% set callback = '{}{}'.format(interface, "Callback") %}
+{% set oncedefine = '{0}_{1}_H_'.format(module.module_name|upper, class|upper) %}
+#ifndef {{oncedefine}}
+#define {{oncedefine}}
+
+#include <QObject>
+
+#include <QJniObject>
+
+#include <memory>
+
+#include <{{module | module_path("/", "aidl")}}/I{{interface}}Service.h>
+{% for struct in module.structs %}
+#include <{{module | module_path("/", "aidl") }}/{{struct}}.h>
+{% endfor %}
+
+#include "{{interface|lower}}backendinterface.h"
+#include "{{callback|lower}}.h"
+#include "{{interface|lower}}.h"
+
+QT_BEGIN_NAMESPACE
+
+namespace module_ns = {{module | module_path("::", "aidl") }};
+
+class {{class}} : public {{interface}}BackendInterface
+{
+    Q_OBJECT
+
+public:
+    explicit {{class}}(QObject *parent = nullptr);
+    ~{{class}}();
+
+    Q_INVOKABLE void initialize() override;
+
+{% for property in interface.properties %}
+    {{qtif.prop_getter(property, model_interface = true)}};
+{% endfor %}
+
+{% for operation in interface.operations %}
+    Q_INVOKABLE {{qtif.operation(operation, zoned = interface_zoned)}} override;
+{% endfor %}
+
+    Q_INVOKABLE void initBinder(QJniObject binder);
+    Q_INVOKABLE void serviceDisconnected();
+
+public Q_SLOTS:
+{% for property in interface.properties %}
+{%   if not property.readonly and not property.const %}
+    {{qtif.prop_setter(property)}} override;
+{%   endif %}
+{% endfor %}
+
+private:
+    void setService(const std::shared_ptr<module_ns::I{{interface}}Service>& service);
+    void unsetServiceObjects();
+    void register{{callback}}();
+
+    std::shared_ptr<module_ns::I{{interface}}Service> m_Service;
+    std::shared_ptr<{{callback}}> m_{{callback|lower_first}};
+    ndk::SpAIBinder m_SpAIBinder;
+    AIBinder* m_pAIBinder;
+    QJniObject m_JniBinder;
+};
+QT_END_NAMESPACE
+#endif // {{oncedefine}}

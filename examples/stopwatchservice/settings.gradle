@@ -1,0 +1,24 @@
+
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        mavenLocal() // [1]
+        maven {
+            url "https://repo.repsy.io/mvn/spyrosoft-synergy/gradle/" // [2]
+        }
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        google()
+        mavenCentral()
+        jcenter() // Warning: this repository is going to shut down soon
+    }
+}
+
+
+rootProject.name = "StopwatchService"
+include ':service'

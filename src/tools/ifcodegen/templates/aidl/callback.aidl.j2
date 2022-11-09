@@ -1,0 +1,20 @@
+{#
+# Copyright (C) 2022 SpyroSoft S.A.
+# SPDX-License-Identifier: MIT
+#}
+
+package {{interface.module.name}};
+
+{% for t in interface | structures %}
+import {{interface.module.name}}.{{t.name}};
+{% endfor %}
+
+interface I{{interface}}Callback {
+{% for property in interface.properties %}
+    void {{property}}Changed(in {{property|aidl_type}} {{property}});
+{% endfor %}
+{% for signal in interface.signals %}
+    /** Callback for {{signal}} signal */
+    void {{signal}}({% for param in signal.parameters %}in {{param|aidl_type}} {{param.name}}{{ ", " if not loop.last}}{% endfor %});
+{% endfor %}  
+}
