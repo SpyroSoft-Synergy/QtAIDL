@@ -18,25 +18,21 @@ def aidl_type(symbol):
     else: 
         return symbol.type.name
 
-def append_unique_structure(list, type):
-    if type.is_struct and not any(type.name == t.name for t in list):
-        list.append(type)
-
-def structures(interface):
+def gether_interface_types(interface):
     types = []
     for o in interface.operations:
         for p in o.parameters:
-            append_unique_structure(types, p.type)
-        append_unique_structure(types, o.type)
+            types.append(p.type)
+        types.append(o.type)
 
     for s in interface.signals:
         for p in s.parameters:
-            append_unique_structure(types, p.type)
+            types.append(p.type)
 
     for p in interface.properties:
-        append_unique_structure(types, p.type)
+        types.append(p.type)
 
-    return types
+    return set(types)
 
 def module_path(module, joint = '/', prefix = ""):
     name = module.name
@@ -59,4 +55,4 @@ def module_ns(module, prefix = ""):
 filters['module_path'] = module_path
 filters['module_ns'] = module_ns
 filters['aidl_type'] = aidl_type
-filters['structures'] = structures
+filters['gether_interface_types'] = gether_interface_types

@@ -6,8 +6,10 @@
 package {{interface.module.name}};
 
 import {{interface.module.name}}.I{{interface}}Callback;
-{% for t in interface | structures %}
+{% for t in interface | gether_interface_types %}
+{%   if t.is_struct or t.is_enum %}
 import {{interface.module.name}}.{{t.name}};
+{%   endif %}
 {% endfor %}
 
 interface I{{interface}}Service {

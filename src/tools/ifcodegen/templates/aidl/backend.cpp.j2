@@ -82,6 +82,10 @@ void {{class}}::setService(const std::shared_ptr<module_ns::IStopwatchController
         std::string src;
         m_Service->{{property}}(&src);
         return QString::fromStdString(src);
+{%   elif property.type.is_enum %}
+        ::{{module | module_ns("aidl") }}::{{property.type}} src;
+        m_Service->{{property}}(&src);
+        return static_cast<{{property|return_type}}>(src);
 {%   else %}
         {{property|return_type}} src;
         m_Service->{{property}}(&src);
@@ -107,6 +111,8 @@ void {{class}}::setService(const std::shared_ptr<module_ns::IStopwatchController
         m_Service->set{{property.name|upperfirst}}(st);
 {%     elif property.type.is_string %}
         m_Service->set{{property.name|upperfirst}}({{property}}.toStdString());
+{%     elif property.type.is_enum %}
+        m_Service->set{{property.name|upperfirst}}(static_cast<ns::{{property.type}}>({{property}}));
 {%     else %}
         m_Service->set{{property.name|upperfirst}}({{property}});
 {%     endif %}
@@ -151,6 +157,8 @@ void {{class}}::initialize()
 {%      set _ = function_parameters.append(parameter.name +".toStdString()") %}
 {%    elif parameter.type.is_struct %}
 {%        set _ = function_parameters.append(parameter.name +"Aidl") %}
+{%    elif parameter.type.is_enum %}
+{%        set _ = function_parameters.append("static_cast<ns::" + parameter.type.name + ">(" + parameter.name +")") %}
 {%    else %}
 {%       set _ = function_parameters.append(parameter.name) %}
 {%    endif %}
@@ -172,8 +180,10 @@ void {{class}}::initialize()
 {%  if not operation.type.is_void %}
 {%    if operation.type.is_struct %}
         ns::{{operation|return_type}} result;
-{%    elif operation.type.is_string%}
+{%    elif operation.type.is_string %}
         std::string result;
+{%    elif operation.type.is_enum %}
+        ns::{{operation.type}} result;
 {%    else %}
         {{operation|return_type}} result;
 {%    endif %}
@@ -186,7 +196,6 @@ void {{class}}::initialize()
 {%       endfor %}
 {%    endif %}
 {%  endfor %}
-
         auto status = m_Service->{{operation}}({{params}});
         if (status.isOk()) {
 {%  if not operation.type.is_void %}
@@ -195,8 +204,10 @@ void {{class}}::initialize()
 {%       for field in operation.type.reference.fields %}
            resultValue.{{field|setter_name}}(result.{{field}});
 {%       endfor %}           
-{%    elif operation.type.is_string%}
+{%    elif operation.type.is_string %}
             QString resultValue = QString::fromStdString(result);
+{%    elif operation.type.is_enum %}
+            {{operation|return_type}} resultValue = static_cast<{{operation|return_type}}>(result);
 {%    else %}
             {{operation|return_type}} resultValue = result;
 {%    endif%}
