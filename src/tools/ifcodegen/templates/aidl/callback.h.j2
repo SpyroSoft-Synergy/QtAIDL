@@ -30,6 +30,8 @@ public:
 {% for property in interface.properties %}
 {% if property.type.is_struct %}
     ndk::ScopedAStatus {{property}}Changed(const ::{{ns}}::{{property|return_type}}& in_{{property}}) override;
+{% elif property.type.is_enum %}
+    ndk::ScopedAStatus {{property}}Changed(::{{ns}}::{{property.type}} in_{{property}}) override;
 {% elif property.type.is_string %}
 ndk::ScopedAStatus {{property}}Changed(const std::string& in_{{property}}) override;
 {% else %}
@@ -44,6 +46,8 @@ ndk::ScopedAStatus {{property}}Changed(const std::string& in_{{property}}) overr
 {%       set _ = signal_parameters.append("const ::" + ns + "::" + parameter|return_type + " in_" + parameter.name) %}
 {%     elif parameter.type.is_string %}
 {%       set _ = signal_parameters.append("const std::string& in_" + parameter.name) %}
+{%     elif parameter.type.is_enum %}
+{%       set _ = signal_parameters.append(" ::" + ns + "::" + parameter.type.name + " in_" + parameter.name) %}
 {%     else %}
 {%       set _ = signal_parameters.append(parameter|return_type + " in_" + parameter.name) %}
 {%     endif %}

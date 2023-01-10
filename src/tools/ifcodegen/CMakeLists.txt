@@ -9,6 +9,7 @@ qt_copy_or_install(
   templates/aidl/callback.cpp.j2
   templates/aidl/CMakeLists.txt.j2
   templates/aidl/callback.aidl.j2
+  templates/aidl/enum.aidl.j2
   templates/aidl/service.aidl.j2
   templates/aidl/plugin.cpp.j2
   templates/aidl/backend.h.j2

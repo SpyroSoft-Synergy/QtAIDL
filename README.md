@@ -94,7 +94,7 @@ QtAidl module enables easy transition between both worlds:
 
 Currently only a subset of QFace IDL is supported. Support for the following major elements of [QFace grammar](https://qface.readthedocs.io/en/latest/grammar.html) are not implemented yet:
 * [Nested Types](https://qface.readthedocs.io/en/latest/grammar.html#nested-types)
-* [Enum/Flag](https://qface.readthedocs.io/en/latest/grammar.html#enum-flag)
+* [Flag](https://qface.readthedocs.io/en/latest/grammar.html#enum-flag)
 * `extends` [keyword](https://qface.readthedocs.io/en/latest/grammar.html#interface)
 
 Regarding the conversion rules between QFace IDL and AIDL the QtAidl module takes the following convention:

@@ -16,3 +16,6 @@ aidl:
     struct:
         documents:
             - "aidl/{{interface.module | module_path}}/{{struct}}.aidl": "struct.aidl.j2"
+    enums:
+        documents::
+            - "aidl/{{enum.module | module_path}}/{{enum}}.aidl" : enum.aidl.j2
