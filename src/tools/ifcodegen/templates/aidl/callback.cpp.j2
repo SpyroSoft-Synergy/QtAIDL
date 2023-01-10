@@ -25,6 +25,8 @@ QT_BEGIN_NAMESPACE
 ndk::ScopedAStatus {{class}}::{{property}}Changed(const ::{{ns}}::{{property|return_type}}& {{property}})
 {% elif property.type.is_string %}
 ndk::ScopedAStatus {{class}}::{{property}}Changed(const std::string& {{property}})
+{% elif property.type.is_enum %}
+ndk::ScopedAStatus {{class}}::{{property}}Changed(::{{ns}}::{{property.type}} {{property}})
 {% else %}
 ndk::ScopedAStatus {{class}}::{{property}}Changed({{property|return_type}} {{property}})
 {% endif %}
@@ -39,6 +41,8 @@ ndk::ScopedAStatus {{class}}::{{property}}Changed({{property|return_type}} {{pro
     QMetaObject::invokeMethod(&m_controller, "{{property}}Changed",  Qt::ConnectionType::QueuedConnection, Q_ARG({{property|return_type}}, st));
 {% elif property.type.is_string %}
     QMetaObject::invokeMethod(&m_controller, "{{property}}Changed",  Qt::ConnectionType::QueuedConnection, Q_ARG({{property|return_type}}, QString::fromStdString({{property}})));
+{% elif property.type.is_enum %}
+    QMetaObject::invokeMethod(&m_controller, "{{property}}Changed",  Qt::ConnectionType::QueuedConnection, Q_ARG({{property|return_type}}, static_cast<{{property|return_type}}>({{property}})));
 {% else %}
     QMetaObject::invokeMethod(&m_controller, "{{property}}Changed",  Qt::ConnectionType::QueuedConnection, Q_ARG({{property|return_type}}, {{property}}));
 {% endif %}
@@ -52,6 +56,8 @@ ndk::ScopedAStatus {{class}}::{{property}}Changed({{property|return_type}} {{pro
 {%   for parameter in signal.parameters %}
 {%     if parameter.type.is_struct %}
 {%       set _ = signal_parameters.append("const ::" + ns + "::" + parameter|return_type + " in_" + parameter.name) %}
+{%     elif parameter.type.is_enum %}
+{%        set _ = signal_parameters.append("::" + ns + "::" + parameter.type.name + " in_" + parameter.name) %}
 {%     elif parameter.type.is_string %}
 {%       set _ = signal_parameters.append("const std::string& in_" + parameter.name) %}
 {%     else %}
@@ -72,6 +78,8 @@ ndk::ScopedAStatus {{class}}::{{signal}}({{signal_parameters|join(", ")}})
 {%     set _ = signal_args.append("Q_ARG(" + parameter|return_type + ", " + parameter.name + ")") %}
 {%   elif parameter.type.is_string %}
 {%     set _ = signal_args.append("Q_ARG(" + parameter|return_type + ", QString::fromStdString(in_" + parameter.name + "))") %}
+{%   elif parameter.type.is_enum %}
+{%     set _ = signal_args.append("Q_ARG(" + parameter|return_type + ", static_cast<" + parameter|return_type +">(in_" + parameter.name + "))") %}
 {%   else %}
 {%     set _ = signal_args.append("Q_ARG(" + parameter|return_type + ", in_" + parameter.name + ")") %}
 {%   endif %}
